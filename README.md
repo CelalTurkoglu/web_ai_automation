@@ -4,6 +4,9 @@ Program makaleyi indirip AI ile inceliyor, forma giriyor ve aldığı bilgilerle
 Farklı makalelerde aynı olan bazı bilgiler koda manuel olarak girilir.
 Zaten bu bilgilerin bir kısmı yazıda yazmıyor.
 Bu ilk AI API kullanımımdı
+
+
+
 [ENG]
 I made an online form filling automation with python, which uses gpt-4o-mini API to analyze articles. 
 The program downloads and examines article with AI, enters the form and fills it in with the information it receives.
