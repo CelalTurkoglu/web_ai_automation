@@ -10,32 +10,32 @@ import time
 from dotenv import load_dotenv
 import os
 
-# .env dosyasını yükle
+# Load environment variables from .env file
 load_dotenv()
 
-# OpenAI API Key'inizi .env dosyasından alın
+# Get OpenAI API key from .env file
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Form bilgilerini .env dosyasından alın
+# Get form login credentials from .env file
 FORM_EMAIL = os.getenv("FORM_EMAIL")
 FORM_PASSWORD = os.getenv("FORM_PASSWORD")
 
 
-# PDF'i indirme fonksiyonu
+# Function to download a PDF from a given URL
 def pdf_indir(url, kayit_yolu):
     try:
         response = requests.get(url)
-        response.raise_for_status()  # Hata kontrolü
+        response.raise_for_status()  # Check for errors
         with open(kayit_yolu, "wb") as f:
             f.write(response.content)
-        print(f"PDF başarıyla indirildi: {kayit_yolu}")
+        print(f"PDF successfully downloaded: {kayit_yolu}")
         return True
     except Exception as e:
-        print(f"PDF indirilirken hata oluştu: {e}")
+        print(f"Error while downloading PDF: {e}")
         return False
 
 
-# PDF'den metin çıkarma fonksiyonu
+# Function to extract text from a PDF file
 def pdf_metnini_al(dosya_yolu):
     try:
         with pdfplumber.open(dosya_yolu) as pdf:
@@ -44,114 +44,114 @@ def pdf_metnini_al(dosya_yolu):
                 metin += sayfa.extract_text()
             return metin
     except Exception as e:
-        print(f"PDF'den metin çıkarılırken hata oluştu: {e}")
+        print(f"Error while extracting text from PDF: {e}")
         return None
 
 
-# GPT-4o-mini ile bilgi çıkarma
+# Function to extract information using GPT-4o-mini
 def bilgi_cikar(prompt):
     try:
         response = openai.ChatCompletion.create(
-            model="gpt-4o-mini",  # GPT-4o-mini kullanıyoruz
+            model="gpt-4o-mini",  # Use GPT-4o-mini
             messages=[
                 {"role": "system",
-                 "content": "Sen bir yardımcısın. Verilen metinden başlık, yazarlar, anahtar kelimeler ve kaynakça bilgilerini çıkarırsın."},
+                 "content": "You are an assistant. Extract the title, authors, keywords, and references from the given text."},
                 {"role": "user", "content": prompt}
             ]
         )
         return response.choices[0].message['content'].strip()
     except Exception as e:
-        print(f"OpenAI API'den bilgi alınırken hata oluştu: {e}")
+        print(f"Error while fetching information from OpenAI API: {e}")
         return None
 
 
-# Yazar ekleme fonksiyonu
+# Function to add an author to the form
 def yazar_ekle(driver, yazar):
     try:
-        # Yazar ekleme butonuna tıkla
+        # Click the "Add Author" button
         yazar_butonu = driver.find_element(By.XPATH,
                                            "//*[@id='main']/div/div/makale-giris/div/div/app-card/div/div[2]/form/app-card[3]/div/div[2]/div/div/div/pls-datatable/table/thead/tr/th[4]/button")
         yazar_butonu.click()
         time.sleep(1)
 
-        # Yazar adını gir
+        # Enter the author's name
         yazar_input = driver.find_element(By.XPATH,
                                           "/html/body/ngb-modal-window/div/div/form/div[2]/div[1]/div/p-autocomplete/span/input")
         yazar_input.send_keys(yazar)
         time.sleep(1)
 
-        # Kaydet butonuna tıkla
+        # Click the save button
         yazar_kaydet_butonu = driver.find_element(By.CLASS_NAME, "btn-outline-primary")
         yazar_kaydet_butonu.click()
         time.sleep(1)
     except Exception as e:
-        print(f"Yazar eklenirken hata oluştu: {e}")
+        print(f"Error while adding author: {e}")
 
 
-# Form doldurma fonksiyonu
+# Function to fill out the form with extracted information
 def form_doldur(bilgiler):
     driver = None
     try:
         driver = webdriver.Safari()
         driver.maximize_window()
 
-        # === 1. Giriş Yapma ===
+        # === 1. Log in ===
         driver.get("https://aixadmin.ssteknoloji.com/academindex/login")
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "email")))
 
-        # Mail adresi
+        # Enter email
         email_input = driver.find_element(By.NAME, "email")
-        email_input.send_keys(FORM_EMAIL)  # .env dosyasından oku
+        email_input.send_keys(FORM_EMAIL)  # Read from .env file
 
-        # Şifre
+        # Enter password
         password_input = driver.find_element(By.NAME, "password")
-        password_input.send_keys(FORM_PASSWORD)  # .env dosyasından oku
+        password_input.send_keys(FORM_PASSWORD)  # Read from .env file
         password_input.send_keys(Keys.ENTER)
 
-        # === 2. Makaleler Sayfasına Git ===
+        # === 2. Navigate to the Articles Page ===
         WebDriverWait(driver, 10).until(
             EC.presence_of_element_located((By.XPATH, "//a[@class='nav-link' and @href='/academindex/acd/makaleler']")))
         a_etiketi = driver.find_element(By.XPATH, "//a[@class='nav-link' and @href='/academindex/acd/makaleler']")
         a_etiketi.click()
         time.sleep(1)
 
-        # === 3. Formu Aç ===
+        # === 3. Open the Form ===
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "btn-success")))
         form_ac_butonu = driver.find_element(By.CLASS_NAME, "btn-success")
         form_ac_butonu.click()
         time.sleep(1)
 
-        # === 4. Form Alanlarını Doldur ===
+        # === 4. Fill Out the Form Fields ===
 
-        # Başlık
+        # Title
         WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, "baslik")))
         baslik_input = driver.find_element(By.NAME, "baslik")
         baslik_input.send_keys(bilgiler["baslik"])
 
-        # Yıl
+        # Year
         yil_input = driver.find_element(By.NAME, "yil")
         yil_input.send_keys("1996")
 
-        # Sayı
+        # Issue
         sayi_input = driver.find_element(By.NAME, "sayi")
         sayi_input.send_keys("20")
 
-        # Cilt
+        # Volume
         cilt_input = driver.find_element(By.NAME, "cilt")
         cilt_input.send_keys("7")
 
-        # Anahtar Kelimeler
+        # Keywords
         anahtar_kelime = driver.find_element(By.XPATH,
                                              "//*[@id='main']/div/div/makale-giris/div/div/app-card/div/div[2]/form/app-card[1]/div/div[2]/div[10]/div/span/p-chips/div/ul/li/input")
         for kelime in bilgiler["anahtar_kelime"]:
             anahtar_kelime.send_keys(kelime)
             anahtar_kelime.send_keys(Keys.ENTER)
 
-        # PDF Linki
+        # PDF Link
         pdf_linki = driver.find_element(By.NAME, "url")
         pdf_linki.send_keys(bilgiler["link"])
 
-        # Kaynakça
+        # Bibliography
         kaynakca_butonu = driver.find_element(By.XPATH,
                                               "//*[@id='main']/div/div/makale-giris/div/div/app-card/div/div[2]/form/app-card[2]/div/div[2]/div/div/div/pls-datatable/table/thead/tr/th[4]/button[2]")
         kaynakca_butonu.click()
@@ -165,69 +165,69 @@ def form_doldur(bilgiler):
         kaynakca_ekle_butonu = driver.find_element(By.CLASS_NAME, "btn-outline-primary")
         kaynakca_ekle_butonu.click()
 
-        # Yazar Ekleme
-        yazarlar = bilgiler["yazarlar"].split(", ")  # Yazarları virgülle ayır
+        # Add Authors
+        yazarlar = bilgiler["yazarlar"].split(", ")  # Split authors by comma
         for yazar in yazarlar:
             yazar_ekle(driver, yazar)
 
-        # Dergi Adı
+        # Journal Name
         dergi_input = driver.find_element(By.XPATH,
                                           "//input[@class='ng-tns-c12-9 form-control ui-inputtext ui-widget ui-state-default ui-corner-all ui-autocomplete-input ng-star-inserted']")
-        dergi_input.send_keys("Ekonomik Yaklaşım")  # Dergi adını yaz
+        dergi_input.send_keys("Ekonomik Yaklaşım")  # Enter journal name
 
-        # Açılır listeyi bekle ve ilk öğeyi seç
-        time.sleep(1.5)  # 2 saniye bekle
+        # Wait for the dropdown and select the first item
+        time.sleep(1.5)  # Wait for 2 seconds
         liste_elemani = driver.find_element(By.XPATH, "//li[contains(@class, 'ui-autocomplete-list-item')]")
         liste_elemani.click()
 
-        print("Form başarıyla dolduruldu.")
-        input("Tarayıcıyı kapatmak için Enter'a basın...")
+        print("Form successfully filled out.")
+        input("Press Enter to close the browser...")
 
     except Exception as e:
-        print(f"Hata oluştu: {e}")
+        print(f"An error occurred: {e}")
     finally:
         if driver:
             driver.quit()
 
 
-# Ana işlev
+# Main function
 if __name__ == "__main__":
-    # PDF linki
-    pdf_url = "https://dergipark.org.tr/tr/download/article-file/3493120"  # Buraya PDF linkini yazın
-    kayit_yolu = "/Users/celal/Desktop/aaa/indirilen_makale.pdf"  # PDF'in kaydedileceği yol
+    # PDF URL
+    pdf_url = "https://dergipark.org.tr/tr/download/article-file/3493120"  # Enter the PDF URL here
+    kayit_yolu = "/Users/celal/Desktop/aaa/indirilen_makale.pdf"  # Path to save the downloaded PDF
 
-    # PDF'i indir
+    # Download the PDF
     if not pdf_indir(pdf_url, kayit_yolu):
-        print("PDF indirilemedi. Program sonlandırılıyor.")
+        print("Failed to download PDF. Exiting program.")
         exit()
 
-    # PDF'den metni çıkar
+    # Extract text from the PDF
     pdf_metni = pdf_metnini_al(kayit_yolu)
     if not pdf_metni:
-        print("PDF'den metin çıkarılamadı. Program sonlandırılıyor.")
+        print("Failed to extract text from PDF. Exiting program.")
         exit()
 
-    # GPT-4o-mini ile bilgi çıkar
-    baslik_yazarlar_prompt = f"Aşağıdaki metinden başlık ve yazarları bul. Sadece başlık ve yazarları alt alta yaz:\n{pdf_metni}"
+    # Extract information using GPT-4o-mini
+    baslik_yazarlar_prompt = f"Extract the title and authors from the following text. Write only the title and authors, one per line, and separate multiple authors with a comma ',':\n{pdf_metni}"
     baslik_yazarlar = bilgi_cikar(baslik_yazarlar_prompt)
 
-    anahtar_kelimeler_prompt = f"Aşağıdaki metinden anahtar kelimeleri bul. Anahtar kelimeler 'anahtar kelimeler:' yazısından sonra gelir. Sadece anahtar kelimeleri yaz ve 'anahtar kelimeler:' ifadesini başına koyma:\n{pdf_metni}"
+    anahtar_kelimeler_prompt = f"Extract the keywords from the following text. Keywords usually appear after 'anahtar kelimeler:' or 'keywords:'. Write only the keywords, without any labels:\n{pdf_metni}"
     anahtar_kelimeler = bilgi_cikar(anahtar_kelimeler_prompt)
 
-    kaynakca_prompt = f"Aşağıdaki metinden kaynakça kısmını bul. Kaynakça 'kaynakça:' veya 'references:' yazısından sonra gelir. Tüm kaynakçayı yaz, başına başlık, anahtar kelimeler vs yazma:\n{pdf_metni}"
+    kaynakca_prompt = f"Extract the bibliography from the following text. The bibliography usually appears after 'kaynakça:' or 'references:'. Write the entire bibliography, without any additional text:\n{pdf_metni}"
     kaynakca = bilgi_cikar(kaynakca_prompt)
 
-    # Yazarları listeye çevir
-    yazarlar = baslik_yazarlar.split("\n")[1]  # Başlık hariç yazarları al
+    # Convert authors to a list
+    yazarlar = baslik_yazarlar.split("\n")[1]  # Exclude the title line
 
-    # Bilgileri birleştir
+    # Combine extracted information
     bilgiler = {
-        "baslik": baslik_yazarlar.split("\n")[0],  # İlk satır başlık
+        "baslik": baslik_yazarlar.split("\n")[0],  # First line is the title
         "yazarlar": yazarlar,
         "anahtar_kelime": anahtar_kelimeler.split(", "),
         "kaynakca": kaynakca,
-        "link": pdf_url  # Makale linki
+        "link": pdf_url  # PDF link
     }
 
-    # Formu doldur
+    # Fill out the form
     form_doldur(bilgiler)
